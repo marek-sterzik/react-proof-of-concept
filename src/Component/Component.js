@@ -35,16 +35,29 @@ function createReactComponent(component)
 
         render()
         {
+            var content = this.renderContent()
+            if ("decorate" in this.component) {
+                content = this.component.decorate(content)
+            }
+            return content
+        }
+
+        renderContent()
+        {
             if (this.component._disconnected) {
                 return <>Error: This component was disconnected</>
-            } else if (this.component.isWaiting()) {
+            } else if (this.component.isWaitingState()) {
                 if (this.component.canWait()) {
                     return this.component.renderWait()
                 } else {
                     return null
                 }
             } else {
-                return this.component.render()
+                if ("render" in this.component) {
+                    return this.component.render()
+                } else {
+                    throw "Render function not implemented"
+                }
             }
         }
 
@@ -52,8 +65,15 @@ function createReactComponent(component)
         {
             return component.disconnect()
         }
+
+        static getId()
+        {
+            return component.getId()
+        }
     }
 }
+
+const S_PUSH = Object.freeze({})
 
 function parseKey(key)
 {
@@ -61,10 +81,12 @@ function parseKey(key)
     for (var k of key.split(/\./)) {
         if (k.match(/^[0-9]+$/)) {
             k = parseInt(k)
+        } else if (k === '@') {
+            k = S_PUSH
         }
         keys.push(k)
     }
-    return [key]
+    return keys
 }
 
 function isPromise(p) {
@@ -81,8 +103,20 @@ function isPromise(p) {
   return false;
 }
 
-function resolveWrite(component, recursively, object, key, value)
+function isCallable(f)
 {
+    return typeof f === 'function' && !/^class\s/.test(Function.prototype.toString.call(f));
+
+}
+
+function resolveWrite(component, recursively, object, key, value, resolveFunction)
+{
+    if (key === S_PUSH) {
+        key = object.length
+    }
+    if (resolveFunction && isCallable(value)) {
+        value = value(object[key])
+    }
     object[key] = value
     if (isPromise(value)) {
         component.waitStart()
@@ -106,26 +140,81 @@ function notifyReactChanged(object, recursively)
     }
 }
 
-function changeState(object, variable, recursively, arg1, arg2)
+function parseArgs(args)
 {
-    if (arg2 !== undefined) {
-        arg1 = {[arg1]: arg2}
+    if (args.length == 0) {
+        throw "Arguments for setState()/setContext() method cannot be empty"
     }
-    for (var key in arg1) {
-        changeStateSingle(object, variable, recursively, key, arg1[key])
+
+    var writes = []
+    var resolveFunction = false
+
+    var arg0 = args.shift()
+
+    if (typeof arg0 === "string") {
+        arg0 = parseKey(arg0)
+    }
+
+    if (typeof arg0 === "object" && arg0 instanceof Array) {
+        if (args.length < 1) {
+            throw "Invalid argument count for setState()/setContext()"
+        }
+        writes.push({"key": arg0, "value": args.shift()})
+    } else {
+        resolveFunction = false
+        for (var key in arg0) {
+            writes.push({"key": parseKey(key), "value": arg0[key]})
+        }
+    }
+
+    if (args.length > 1) {
+        throw "Invalid argument count for setState()/setContext()"
+    }
+    if (args.length == 1) {
+        if (args[0] !== true && args[1] !== false) {
+            throw "Invalid resolveFunction argument for setState()/setContext()"
+        }
+        resolveFunction = args[0]
+    }
+
+    return {writes, resolveFunction}
+}
+
+function changeState(object, variable, recursively, ...args)
+{
+    args = parseArgs(args)
+    for (var write of args.writes) {
+        changeStateSingle(object, variable, recursively, write.key, write.value, args.resolveFunction)
     }
     notifyReactChanged(object, recursively)
 }
 
-function changeStateSingle(object, variable, recursively, key, value)
+function changeStateSingle(object, variable, recursively, keys, value, resolveFunction)
 {
-    const keys = parseKey(key)
     const lastKey = keys.pop()
     var obj = variable
-    for (var k in keys) {
-        obj = obj[k]
+    var oldKey = null
+    for (var k of keys) {
+        if (oldKey !== null) {
+            if (typeof k === "string") {
+                obj[oldKey] = {}
+            } else if ((typeof k === "int") || (k === S_PUSH)) {
+                obj[oldKey] = []
+            }
+            obj = obj[oldKey]
+            oldKey = null
+        }
+        if (k !== S_PUSH) {
+            if (obj[k] === undefined) {
+                oldKey = k
+            } else {
+                obj = obj[k]
+            }
+        } else {
+            oldKey = obj.length
+        }
     }
-    resolveWrite(object, recursively, obj, lastKey, value)
+    resolveWrite(object, recursively, obj, lastKey, value, resolveFunction)
 }
 
 
@@ -184,7 +273,8 @@ export default class Component
         this._internal = {"waiting": 0}
         this._parent = parent
         this._mountedReactComponents = []
-        this._reactComponent = createReactComponent(this)
+        const view = createReactComponent(this)
+        this.view = () => view
         this._children = {}
         if ("init" in this) {
             this.init(...args)
@@ -196,14 +286,14 @@ export default class Component
         return "renderWait" in this;
     }
 
-    isWaiting()
+    isWaitingState()
     {
         return this._internal.waiting > 0
     }
 
     waitStart()
     {
-        if (this._internal.waiting == 0 && ! this.canWait()) {
+        if (this._internal.waiting == 0 && !this.canWait()) {
             const parent = this.parent()
             if (parent) {
                 parent.waitStart()
@@ -245,7 +335,6 @@ export default class Component
     setState(...args)
     {
         changeState(this, this.state, false, ...args)
-        this.notifyReactChanged()
     }
 
     setContext(...args)
@@ -253,16 +342,9 @@ export default class Component
         changeState(this, this.context, true, ...args)
     }
 
-
-    render()
-    {
-        throw "Render not implemented"
-    }
-
     createSubComponent(subcomponentClass, ...args)
     {
-        const instance = new subcomponentClass(this, args)
-        return instance._reactComponent
+        return (new subcomponentClass(this, args)).view()
     }
 
     parent()
@@ -274,7 +356,7 @@ export default class Component
     {
         this._disconnected = true
         delete this._parent._children[this.id]
-        if (this._parent !== null && this._internal.waiting > 0 && !this.canWait()) {
+        if (this._parent !== null && this.isWaitingState() && !this.canWait()) {
             this._parent.waitFinish()
         }
         this.context = {}
@@ -282,7 +364,12 @@ export default class Component
         this.notifyReactChanged()
     }
 
-    static createRoot(...args)
+    getId()
+    {
+        return this.id
+    }
+
+    static createRootComponent(...args)
     {
         return createReactComponent(new this(null, args))
     }
@@ -297,4 +384,4 @@ function waiting(data, waitValue)
     return data
 }
 
-export {Component, waiting}
+export {Component, waiting, S_PUSH}
