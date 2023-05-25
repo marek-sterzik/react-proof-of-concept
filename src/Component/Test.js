@@ -14,7 +14,7 @@ class MasterComponent extends Component
         return <div>
             <div>status is: { this.state.status }</div>
             {(this.state.status == "ok" && this.state.slave !== null) ? <this.state.slave /> : null}
-            { this.state.slave !== null ? <div onClick={this.unmountSlave}>UNMOUNT SLAVE</div> : <div onClick={this.mountSlave}>MOUNT SLAVE</div>}
+            { this.state.slave !== null ? <button onClick={this.unmountSlave}>UNMOUNT SLAVE</button> : <button onClick={this.mountSlave}>MOUNT SLAVE</button>}
         </div>
     }
 
@@ -47,7 +47,8 @@ function createPromise(data, timeout)
 
 class SlaveComponent extends Component
 {
-    init = () => {
+    init()
+    {
         this.setState("id", slaveId++)
     }
 
@@ -57,14 +58,15 @@ class SlaveComponent extends Component
 
     changeContext = () => {
         const newIdentifier = (this.context.identifier == "SLAVE") ? 'MASTER' : 'SLAVE'
-        this.parent().setIdentifier(newIdentifier)
+        this.parent().setIdentifier(createPromise(newIdentifier, 1000))
     }
 
-    render = () => {
+    render()
+    {
         return <>
-            <div onClick={this.click}>CLICK {this.state.id}</div>
+            <button onClick={this.click}>CLICK {this.state.id}</button>
             <div>CONTEXT: {this.context.identifier}</div>
-            <div onClick={this.changeContext}>CHANGE CONTEXT</div>
+            <button onClick={this.changeContext}>CHANGE CONTEXT</button>
         </>
     }
 }
