@@ -311,6 +311,14 @@ export default class Component
         this.notifyReactChanged()
     }
 
+    waitFor(promise)
+    {
+        if (isPromise(promise)) {
+            this.waitStart()
+            promise.finally(this.waitFinish.bind(this))
+        }
+    }
+
     waitFinish()
     {
         if (this._internal.waiting > 0) {

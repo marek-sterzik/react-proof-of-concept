@@ -14,10 +14,14 @@ class MasterComponent extends Component
         return <>
             <div>status is: { this.state.status }</div>
             {this.state.slaves.map(Slave => <Slave key={Slave.getId()} />)}
-            <div>
-                <button onClick={this.mountSlave}>MOUNT SLAVE</button>
-            </div>
+            <div><button onClick={this.mountSlave}>MOUNT SLAVE</button></div>
+            <div><button onClick={this.invokePromise}>INVOKE PROMISE</button></div>
         </>
+    }
+
+    invokePromise = () => {
+        const promise = createPromise(100, 1000)
+        this.waitFor(promise)
     }
 
     decorate(content)
