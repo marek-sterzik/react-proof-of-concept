@@ -1,4 +1,5 @@
 import React from "react"
+
 function createReactComponent(component)
 {
     return class extends React.Component
@@ -34,7 +35,9 @@ function createReactComponent(component)
 
         render()
         {
-            if (this.component.isWaiting()) {
+            if (this.component._disconnected) {
+                return <>Error: This component was disconnected</>
+            } else if (this.component.isWaiting()) {
                 if (this.component.canWait()) {
                     return this.component.renderWait()
                 } else {
@@ -78,7 +81,7 @@ function isPromise(p) {
   return false;
 }
 
-function resolveWrite(component, object, key, value)
+function resolveWrite(component, recursively, object, key, value)
 {
     object[key] = value
     if (isPromise(value)) {
@@ -88,22 +91,104 @@ function resolveWrite(component, object, key, value)
         }).then((data) => {
             if (object[key] === value) {
                 object[key] = data
-                component.notifyReactChanged()
+                notifyReactChanged(component, recursively)
             }
         })
     }
 }
 
+function notifyReactChanged(object, recursively)
+{
+    if (recursively) {
+        object.notifyReactChangedRecursively()
+    } else {
+        object.notifyReactChanged()
+    }
+}
+
+function changeState(object, variable, recursively, arg1, arg2)
+{
+    if (arg2 !== undefined) {
+        arg1 = {[arg1]: arg2}
+    }
+    for (var key in arg1) {
+        changeStateSingle(object, variable, recursively, key, arg1[key])
+    }
+    notifyReactChanged(object, recursively)
+}
+
+function changeStateSingle(object, variable, recursively, key, value)
+{
+    const keys = parseKey(key)
+    const lastKey = keys.pop()
+    var obj = variable
+    for (var k in keys) {
+        obj = obj[k]
+    }
+    resolveWrite(object, recursively, obj, lastKey, value)
+}
+
+
+function notifyReactChangedNow(component)
+{
+    for (var reactComponent of component._mountedReactComponents) {
+        reactComponent.updateState()
+    }
+}
+    
+
+class LateNotifier
+{
+    constructor()
+    {
+        this.notifications = {}
+        this.timeoutEnabled = false
+    }
+    
+    notify(object)
+    {
+        this.notifications[object.id] = object
+        if (!this.timeoutEnabled) {
+            this.timeoutEnabled = true
+            setTimeout(this.execute.bind(this), 0)
+        }
+    }
+
+    execute()
+    {
+        this.timeoutEnabled = false
+        for (var id in this.notifications) {
+            notifyReactChangedNow(this.notifications[id])
+        }
+        this.notifications = {}
+    }
+}
+
+var componentId = 1
+
 export default class Component
 {
-    constructor(parent)
+    constructor(parent, args)
     {
+        this.id = "" + (componentId++)
+        this._disconnected = false
+        if (parent) {
+            this._notifier = parent._notifier
+            this.context = Object.create(parent.context)
+            parent._children[this.id] = this
+        } else {
+            this.context = {}
+            this._notifier = new LateNotifier()
+        }
         this.state = {}
         this._internal = {"waiting": 0}
         this._parent = parent
         this._mountedReactComponents = []
         this._reactComponent = createReactComponent(this)
-        this.init()
+        this._children = {}
+        if ("init" in this) {
+            this.init(...args)
+        }
     }
 
     canWait()
@@ -144,53 +229,40 @@ export default class Component
         }
     }
 
-    init()
+    notifyReactChangedRecursively()
     {
-    }
-
-    notifyReactChanged()
-    {
-        for (var reactComponent of this._mountedReactComponents) {
-            reactComponent.updateState()
-        }
-    }
-    
-    setState(arg1, arg2)
-    {
-        if (arg2 !== undefined) {
-            arg1 = {[arg1]: arg2}
-        }
-        for (var key in arg1) {
-            this._setState(key, arg1[key])
+        for (var id in this._children) {
+            this._children[id].notifyReactChangedRecursively()
         }
         this.notifyReactChanged()
     }
 
-    _setState(key, value)
+    notifyReactChanged()
     {
-        const keys = parseKey(key)
-        const lastKey = keys.pop()
-        var obj = this.state
-        for (var k in keys) {
-            obj = obj[k]
-        }
-        resolveWrite(this, obj, lastKey, value)
+        this._notifier.notify(this)
     }
+
+    setState(...args)
+    {
+        changeState(this, this.state, false, ...args)
+        this.notifyReactChanged()
+    }
+
+    setContext(...args)
+    {
+        changeState(this, this.context, true, ...args)
+    }
+
 
     render()
     {
         throw "Render not implemented"
     }
 
-    createSubComponent(subcomponentClass)
+    createSubComponent(subcomponentClass, ...args)
     {
-        const instance = new subcomponentClass(this)
-        return instance.getReactComponent()
-    }
-
-    getReactComponent()
-    {
-        return this._reactComponent
+        const instance = new subcomponentClass(this, args)
+        return instance._reactComponent
     }
 
     parent()
@@ -200,15 +272,19 @@ export default class Component
 
     disconnect()
     {
+        this._disconnected = true
+        delete this._parent._children[this.id]
         if (this._parent !== null && this._internal.waiting > 0 && !this.canWait()) {
             this._parent.waitFinish()
         }
+        this.context = {}
         this._parent = null
+        this.notifyReactChanged()
     }
 
-    static createRoot(args)
+    static createRoot(...args)
     {
-        return createReactComponent(new this(null))
+        return createReactComponent(new this(null, args))
     }
 }
 
