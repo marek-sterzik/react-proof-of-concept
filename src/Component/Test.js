@@ -78,6 +78,10 @@ class SlaveComponent extends Component
         }
     }
 
+    unsetLocalContext = () => {
+        this.setContext("identifier", undefined)
+    }
+
     unmount = () => {
         this.parent().unmountSlave(this.view())
     }
@@ -92,6 +96,7 @@ class SlaveComponent extends Component
                 <div><button onClick={this.click}>CLICK</button></div>
                 <div><button onClick={() => this.changeContext(false)}>CHANGE CONTEXT GLOBAL</button></div>
                 <div><button onClick={() => this.changeContext(true)}>CHANGE CONTEXT LOCAL</button></div>
+                { this.context.hasOwnProperty("identifier") ? <div><button onClick={this.unsetLocalContext}>UNSET CONTEXT LOCAL</button></div> : null }
                 <div><button onClick={this.unmount}>Unmount</button></div>
             </div>
         </div>

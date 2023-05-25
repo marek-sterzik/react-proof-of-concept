@@ -106,7 +106,15 @@ function isPromise(p) {
 function isCallable(f)
 {
     return typeof f === 'function' && !/^class\s/.test(Function.prototype.toString.call(f));
+}
 
+function doWrite(object, key, value)
+{
+    if (value !== undefined) {
+        object[key] = value
+    } else {
+        delete object[key]
+    }
 }
 
 function resolveWrite(component, recursively, object, key, value, resolveFunction)
@@ -117,14 +125,14 @@ function resolveWrite(component, recursively, object, key, value, resolveFunctio
     if (resolveFunction && isCallable(value)) {
         value = value(object[key])
     }
-    object[key] = value
+    doWrite(object, key, value)
     if (isPromise(value)) {
         component.waitStart()
         value.finally(() => {
             component.waitFinish()
         }).then((data) => {
             if (object[key] === value) {
-                object[key] = data
+                doWrite(object, key, data)
                 notifyReactChanged(component, recursively)
             }
         })
