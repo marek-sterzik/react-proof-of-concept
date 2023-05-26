@@ -355,7 +355,7 @@ export default class Component
 
     setContext(...args)
     {
-        changeState(this, this.context, true, ...args)
+        changeState(this, this.context, false, ...args)
     }
 
     createSubComponent(subcomponentClass, ...args)
