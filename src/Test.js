@@ -1,6 +1,6 @@
-import {Component, waiting, consts} from "cdur"
+import Cdur from "cdur"
 
-class MasterComponent extends Component
+class MasterComponent extends Cdur.Component
 {
     init()
     {
@@ -36,7 +36,7 @@ class MasterComponent extends Component
     }
 
     mountSlave = () => {
-        this.setState(["slaves", consts.S_PUSH], this.createSubComponent(SlaveComponent))
+        this.setState(["slaves", Cdur.consts.S_PUSH], this.createSubComponent(SlaveComponent))
     }
 
     unmountSlave = (slave) => {
@@ -59,7 +59,7 @@ function createPromise(data, timeout)
     return new Promise((finish) => setTimeout(() => finish(data), timeout))
 }
 
-class SlaveComponent extends Component
+class SlaveComponent extends Cdur.Component
 {
     init()
     {
@@ -105,6 +105,11 @@ class SlaveComponent extends Component
             </div>
         </div>
     }
+
+    destroy()
+    {
+        alert("destroy child")
+    }
 }
 
-export default MasterComponent.createRootComponent()
+export default MasterComponent
