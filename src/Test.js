@@ -12,10 +12,9 @@ class MasterComponent extends Cdur.Component
     render()
     {
         return <>
-            <div>status is: { this.state.status }</div>
             {this.state.slaves.map(Slave => <Slave key={Slave.getId()} />)}
             <div><button onClick={this.mountSlave}>MOUNT SLAVE</button></div>
-            <div><button onClick={this.invokePromise}>INVOKE PROMISE</button></div>
+            <div><button onClick={this.invokePromise}>INVOKE PROMISE</button><button onClick={this.invokePromise2}>INVOKE PROMISE 2</button></div>
         </>
     }
 
@@ -24,9 +23,16 @@ class MasterComponent extends Cdur.Component
         this.waitFor(promise)
     }
 
+    invokePromise2 = () => {
+        var promise = createPromise("ok", 1000)
+        promise = Cdur.promise(promise).writeOnWait(() => "waiting")
+        this.setState("status", promise)
+    }
+
     decorate(content)
     {
         return <div style={{"border": "1px solid black", "margin": "1em", "padding": "1em", "display": "inline-block"}}>
+                <div>status is: { this.state.status }</div>
                 {content}
             </div>
     }
@@ -105,11 +111,8 @@ class SlaveComponent extends Cdur.Component
             </div>
         </div>
     }
-
-    destroy()
-    {
-        alert("destroy child")
-    }
 }
 
-export default MasterComponent
+const Mount = Cdur.Mount
+
+export {MasterComponent, Mount}

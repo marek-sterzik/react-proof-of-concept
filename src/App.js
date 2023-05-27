@@ -1,6 +1,5 @@
 import './App.css';
-import Master from './Test.js'
-import Cdur from 'cdur'
+import {MasterComponent, Mount} from './Test.js'
 import React from "react"
 
 class EnableDisable extends React.Component
@@ -24,7 +23,7 @@ class EnableDisable extends React.Component
 
 function App() {
   return (
-    <EnableDisable><Cdur.Mount component={Master} /></EnableDisable>
+    <EnableDisable><Mount component={MasterComponent} /></EnableDisable>
   );
 }
 
