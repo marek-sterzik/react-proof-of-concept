@@ -1,6 +1,4 @@
-![Cdur](cdur.svg)
-
-# C.dur.
+# C.dur. proof-of-concept repository
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 

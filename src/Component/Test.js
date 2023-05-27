@@ -1,4 +1,4 @@
-import {Component, waiting, S_PUSH} from "./Component.js"
+import {Component, waiting, consts} from "cdur"
 
 class MasterComponent extends Component
 {
@@ -36,7 +36,7 @@ class MasterComponent extends Component
     }
 
     mountSlave = () => {
-        this.setState(["slaves", S_PUSH], this.createSubComponent(SlaveComponent))
+        this.setState(["slaves", consts.S_PUSH], this.createSubComponent(SlaveComponent))
     }
 
     unmountSlave = (slave) => {
