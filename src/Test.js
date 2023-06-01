@@ -12,7 +12,7 @@ class MasterComponent extends Cdur.Component
     render()
     {
         return <>
-            {this.state.slaves.map(Slave => <Slave key={Slave.getId()} />)}
+            {this.state.slaves.map(Slave => <Cdur.Mount component={Slave} key={Slave.getId()} />)}
             <div><button onClick={this.mountSlave}>MOUNT SLAVE</button></div>
             <div><button onClick={this.invokePromise}>INVOKE PROMISE</button><button onClick={this.invokePromise2}>INVOKE PROMISE 2</button></div>
         </>
@@ -79,7 +79,7 @@ class SlaveComponent extends Cdur.Component
 
     changeContext = (local) => {
         const previousIdentifier = (local ? this.context.identifier : this.parent().context.identifier)
-        const newIdentifier = (previousIdentifier == "SLAVE") ? 'MASTER' : 'SLAVE'
+        const newIdentifier = (previousIdentifier === "SLAVE") ? 'MASTER' : 'SLAVE'
         const promise = createPromise(newIdentifier, 1000)
         if (local) {
             this.setContext("identifier", promise)
