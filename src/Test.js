@@ -1,5 +1,35 @@
 import Cdur from "cdur"
 
+class SmallComponent extends Cdur.Component
+{
+    render()
+    {
+        return <div>This is the small component</div>
+    }
+}
+
+class RootComponent extends Cdur.Component
+{
+    init()
+    {
+    }
+
+    childAdded(child, name)
+    {
+        console.log("root child added", name, child)
+    }
+
+    childRemoved(child, name)
+    {
+        console.log("root child removed", name, child)
+    }
+
+    render() 
+    {
+        return <div><div>ROOT</div>{this.children()}</div>
+    }
+}
+
 class MasterComponent extends Cdur.Component
 {
     init()
@@ -12,7 +42,7 @@ class MasterComponent extends Cdur.Component
     render()
     {
         return <>
-            {this.state.slaves.map(Slave => <Cdur.Mount component={Slave} key={Slave.getId()} />)}
+            {this.state.slaves.map(Slave => <Slave.View key={Slave.getId()} />)}
             <div><button onClick={this.mountSlave}>MOUNT SLAVE</button></div>
             <div><button onClick={this.invokePromise}>INVOKE PROMISE</button><button onClick={this.invokePromise2}>INVOKE PROMISE 2</button></div>
         </>
@@ -93,7 +123,7 @@ class SlaveComponent extends Cdur.Component
     }
 
     unmount = () => {
-        this.parent().unmountSlave(this.view())
+        this.parent().unmountSlave(this)
     }
 
     render()
@@ -113,6 +143,4 @@ class SlaveComponent extends Cdur.Component
     }
 }
 
-const Mount = Cdur.Mount
-
-export {MasterComponent, Mount}
+export {MasterComponent, RootComponent, SmallComponent}
