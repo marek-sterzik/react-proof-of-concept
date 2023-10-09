@@ -23,7 +23,7 @@ class EnableDisable extends React.Component
         return <div>
             <div>
                 <button onClick={this.toggle.bind(this)}>{this.state.visible ? 'unmount' : 'mount'}</button>
-                <button onClick={this.toggleChildren.bind(this)}>{this.state.displayChildren ? 'hide children' : 'show children'}</button>
+                <button onClick={this.toggleChildren.bind(this)}>{this.state.displayChildren ? 'override master' : 'bring master back'}</button>
             </div>
             {this.state.visible ? <div>{children}</div> : null}
         </div>
